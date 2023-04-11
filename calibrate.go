@@ -1,6 +1,7 @@
 package godrone
 
 import (
+	"encoding/json"
 	"fmt"
 	"math"
 )
@@ -28,6 +29,19 @@ func (c Calibration) Convert(data Navdata) Sensors {
 		},
 		Sonar: (float64(data.Ultrasound&0x7FFF) - c.SonarZero) / c.SonarScale,
 	}
+}
+
+func (c Calibration) ExportJSON() ([]byte, error) {
+	return json.Marshal(c)
+}
+
+func (c *Calibration) LoadJSON(bytes []byte) error {
+	err := json.Unmarshal(bytes, c)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 type Calibrator struct {
