@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"net"
@@ -62,21 +63,33 @@ func main() {
 
 func run(pkg, buildDir string) {
 	binName := filepath.Base(pkg)
-	log.Printf("Getting %s", pkg)
-	get := exec.Command("go", "get", pkg)
-	get.Dir = buildDir
-	if output, err := get.CombinedOutput(); err != nil {
-		log.Fatalf("Compile error: %s: %s", err, output)
-	}
 	log.Printf("Cross compiling")
-	build := exec.Command("go", "build", pkg)
+	build := exec.Command("go", "build")
 	build.Env = append(os.Environ(), "GOOS="+goOs, "GOARCH="+goArch)
-	build.Dir = buildDir
+	build.Dir = path.Join("..\\", "godrone")
+
 	if output, err := build.CombinedOutput(); err != nil {
 		log.Printf("Compile error: %s: %s", err, output)
 		log.Print("If you need help setting up Go cross-compiling see:")
 		log.Fatal("  http://www.godrone.io/en/latest/contributor/install_from_source.html")
 	}
+
+	log.Printf("Starting copy operation of compiled product to tmp dir")
+	source, err := os.Open(path.Join("..\\", "godrone", "godrone"))
+	if err != nil {
+		log.Fatal("Failed to open compiled product for copying")
+	}
+	defer source.Close()
+
+	destination, err := os.Create(path.Join(buildDir, "godrone"))
+	if err != nil {
+		log.Fatal("Failed to open compiled product copy destination")
+	}
+	defer destination.Close()
+	if output, err := io.Copy(destination, source); err != nil {
+		log.Fatalf("Copy error: %s: %d", err, output)
+	}
+
 	log.Printf("Establishing telnet connection")
 	telnet, err := DialTelnet(net.JoinHostPort(*addr, telnetPort))
 	if err != nil {
